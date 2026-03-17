@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Cargas</title>
+<style>
+body{font-family:Arial,sans-serif;background:#111;color:#eee;margin:0;padding:20px}
+h1{color:#fcbc00;margin-top:0}
+.container{background:#1c1c1c;padding:20px;border-radius:8px;max-width:900px}
+button{background:#fd5115;border:none;padding:10px 16px;color:white;border-radius:6px;cursor:pointer;margin-right:8px}
+select,input{padding:8px;margin:6px 0;border-radius:4px;border:1px solid #444;background:#222;color:#eee}
+.task{margin:10px 0;padding:12px;background:#333;border-radius:6px}
+.row{margin-bottom:10px}
+</style>
+</head>
+<body>
+<h1>Monitor de Cargas</h1>
+<div class="container">
+  <div class="row">
+    <label>Proyecto</label><br>
+    <select id="projectFilter">
+      <option value="">Todos los proyectos</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>Persona</label><br>
+    <select id="personFilter">
+      <option value="">Todas las personas</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <button onclick="addTask()">Agregar tarea</button>
+    <button onclick="exportReport()">Exportar reporte</button>
+  </div>
+
+  <div id="calendar"></div>
+</div>
+
+<script>
+let tasks = [];
+let projects = new Set();
+let people = new Set();
+
+const projectFilter = document.getElementById('projectFilter');
+const personFilter = document.getElementById('personFilter');
+projectFilter.addEventListener('change', render);
+personFilter.addEventListener('change', render);
+
+function render(){
+  const calendar = document.getElementById('calendar');
+  calendar.innerHTML = '';
+
+  const selectedProject = projectFilter.value;
+  const selectedPerson = personFilter.value;
+
+  const filtered = tasks.filter(t =>
+    (!selectedProject || t.project === selectedProject) &&
+    (!selectedPerson || t.person === selectedPerson)
+  );
+
+  if(filtered.length === 0){
+    calendar.innerHTML = '<p>No hay tareas para mostrar.</p>';
+    return;
+  }
+
+  filtered.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'task';
+    div.innerHTML =
+      '<b>' + escapeHtml(t.name) + '</b><br>' +
+      'Proyecto: ' + escapeHtml(t.project) + '<br>' +
+      'Persona: ' + escapeHtml(t.person) + '<br><br>' +
+      '<button onclick="editTask(' + t.id + ')">Editar</button>';
+    calendar.appendChild(div);
+  });
+}
+
+function addTask(){
+  const name = prompt('Nombre de tarea');
+  if(!name) return;
+
+  const project = prompt('Proyecto');
+  if(!project) return;
+
+  const person = prompt('Persona');
+  if(!person) return;
+
+  const task = { id: Date.now(), name, project, person };
+  tasks.push(task);
+  projects.add(project);
+  people.add(person);
+  updateFilters();
+  render();
+}
+
+function editTask(id){
+  const task = tasks.find(t => t.id === id);
+  if(!task) return;
+
+  const newName = prompt('Editar nombre', task.name);
+  if(newName) task.name = newName;
+
+  const newProject = prompt('Editar proyecto', task.project);
+  if(newProject){
+    task.project = newProject;
+    projects.add(newProject);
+  }
+
+  const newPerson = prompt('Editar persona', task.person);
+  if(newPerson){
+    task.person = newPerson;
+    people.add(newPerson);
+  }
+
+  updateFilters();
+  render();
+}
+
+function updateFilters(){
+  const currentProject = projectFilter.value;
+  const currentPerson = personFilter.value;
+
+  projectFilter.innerHTML = '<option value="">Todos los proyectos</option>';
+  [...projects].sort((a,b)=>a.localeCompare(b)).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    projectFilter.appendChild(opt);
+  });
+
+  personFilter.innerHTML = '<option value="">Todas las personas</option>';
+  [...people].sort((a,b)=>a.localeCompare(b)).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    personFilter.appendChild(opt);
+  });
+
+  projectFilter.value = currentProject;
+  personFilter.value = currentPerson;
+}
+
+function exportReport(){
+  const selectedProject = projectFilter.value;
+  const selectedPerson = personFilter.value;
+
+  let report = 'Reporte de tareas\n\n';
+  if(selectedProject) report += 'Proyecto: ' + selectedProject + '\n';
+  if(selectedPerson) report += 'Persona: ' + selectedPerson + '\n';
+  report += '\n';
+
+  const filtered = tasks.filter(t =>
+    (!selectedProject || t.project === selectedProject) &&
+    (!selectedPerson || t.person === selectedPerson)
+  );
+
+  filtered.forEach(t => {
+    report += '- ' + t.name + ' | ' + t.person + ' | ' + t.project + '\n';
+  });
+
+  const blob = new Blob([report], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'reporte_tareas.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function escapeHtml(text){
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+render();
+</script>
+</body>
+</html>
